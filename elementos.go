@@ -90,7 +90,7 @@ func iniciarPortal(x, y int, destino Ponto, chCmd chan<- Cmd, chAbrir <-chan sin
 
 			case p := <-chPosPlayer:
 				if aberto && p.X == x && p.Y == y {
-					chCmd <- CmdTeleportPlayer{X: destino.X, Y: destino.Y}
+					chCmd <- CmdTeleportPlayer(destino)
 					fecha()
 					stopTimer()
 					chCmd <- CmdStatus{Texto: "Teleportado pelo portal!"}
