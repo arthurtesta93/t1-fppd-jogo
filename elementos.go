@@ -135,7 +135,7 @@ func iniciarArmadilha(x, y int, onMs, offMs int, chCmd chan<- Cmd, chPosPlayer <
 				set()
 			case p := <-chPosPlayer:
 				if ativa && p.X == x && p.Y == y {
-					chCmd <- CmdStatus{Texto: "Aouch! Dano da armadilha."}
+					chCmd <- CmdStatus{Texto: "Putz! Dano da armadilha."}
 				}
 			}
 		}

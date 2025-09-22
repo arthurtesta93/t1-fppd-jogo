@@ -6,8 +6,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/nsf/termbox-go"
 )
 
@@ -45,9 +43,7 @@ func interfaceFinalizar() {
 
 // Lê um evento do teclado e o traduz para um EventoTeclado
 func interfaceLerEventoTeclado() EventoTeclado {
-	fmt.Println("Lendo evento do teclado")
 	ev := termbox.PollEvent()
-	fmt.Println("Evento do teclado: ", ev)
 	if ev.Type != termbox.EventKey {
 		return EventoTeclado{}
 	}
