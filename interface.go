@@ -50,7 +50,7 @@ func interfaceLerEventoTeclado() EventoTeclado {
 	if ev.Key == termbox.KeyEsc {
 		return EventoTeclado{Tipo: "sair"}
 	}
-	if ev.Ch == 'e' {
+	if ev.Ch == 'e' || ev.Ch == 'E' {
 		return EventoTeclado{Tipo: "interagir"}
 	}
 	return EventoTeclado{Tipo: "mover", Tecla: ev.Ch}

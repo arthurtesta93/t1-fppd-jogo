@@ -69,6 +69,20 @@ func jogoCarregarMapa(nome string, jogo *Jogo) error {
 				e = Vegetacao
 			case Personagem.simbolo:
 				jogo.PosX, jogo.PosY = x, y // registra a posição inicial do personagem
+			case PortalFechado.simbolo:
+				e = PortalFechado
+			case PortalAberto.simbolo:
+				e = PortalAberto
+			case AlavancaOff.simbolo:
+				e = AlavancaOff
+			case AlavancaOn.simbolo:
+				e = AlavancaOn
+			case ArmadilhaOff.simbolo:
+				e = ArmadilhaOff
+			case ArmadilhaOn.simbolo:
+				e = ArmadilhaOn
+			case SentinelaElem.simbolo:
+				e = SentinelaElem
 			}
 			linhaElems = append(linhaElems, e)
 		}
