@@ -36,32 +36,72 @@ func iniciarAlavanca(x, y int, chCmd chan<- Cmd, outAbrir chan<- sinal) {
 func iniciarPortal(x, y int, destino Ponto, chCmd chan<- Cmd, chAbrir <-chan sinal, chPosPlayer <-chan Ponto) {
 	go func() {
 		aberto := false
-		fecha := func() { aberto = false; chCmd <- CmdSetCell{X: x, Y: y, Elem: PortalFechado} }
-		abre := func() { aberto = true; chCmd <- CmdSetCell{X: x, Y: y, Elem: PortalAberto} }
+		var timer *time.Timer
+		var timeoutC <-chan time.Time // canal do timer; fica nil quando fechado
+
+		fecha := func() {
+			if aberto {
+				aberto = false
+				chCmd <- CmdSetCell{X: x, Y: y, Elem: PortalFechado}
+			}
+		}
+		abre := func() {
+			aberto = true
+			chCmd <- CmdSetCell{X: x, Y: y, Elem: PortalAberto}
+		}
+		resetTimer := func(d time.Duration) {
+			if timer != nil {
+				if !timer.Stop() {
+					// drena se já disparou para evitar “fogo fantasma”
+					select {
+					case <-timer.C:
+					default:
+					}
+				}
+			}
+			timer = time.NewTimer(d)
+			timeoutC = timer.C
+		}
+		stopTimer := func() {
+			if timer != nil {
+				if !timer.Stop() {
+					select {
+					case <-timer.C:
+					default:
+					}
+				}
+			}
+			timer = nil
+			timeoutC = nil
+		}
 
 		fecha() // começa fechado
+
 		for {
 			select {
 			case <-chAbrir:
-				abre()
-				chCmd <- CmdStatus{Texto: "Portal aberto! (5s)"}
-				select {
-				case <-time.After(5 * time.Second):
-					fecha()
-					chCmd <- CmdStatus{Texto: "Portal fechou por timeout."}
-				case p := <-chPosPlayer:
-					if aberto && p.X == x && p.Y == y {
-						chCmd <- CmdTeleportPlayer{X: destino.X, Y: destino.Y}
-						fecha()
-						chCmd <- CmdStatus{Texto: "Teleportado pelo portal!"}
-					}
+				if !aberto {
+					abre()
+					chCmd <- CmdStatus{Texto: "Portal aberto! (5s)"}
+				} else {
+					chCmd <- CmdStatus{Texto: "Portal: tempo reiniciado (5s)"}
 				}
+				resetTimer(5 * time.Second)
+
 			case p := <-chPosPlayer:
 				if aberto && p.X == x && p.Y == y {
 					chCmd <- CmdTeleportPlayer{X: destino.X, Y: destino.Y}
 					fecha()
+					stopTimer()
 					chCmd <- CmdStatus{Texto: "Teleportado pelo portal!"}
 				}
+
+			case <-timeoutC:
+				if aberto {
+					fecha()
+					chCmd <- CmdStatus{Texto: "Portal fechou por timeout."}
+				}
+				stopTimer()
 			}
 		}
 	}()

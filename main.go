@@ -36,9 +36,9 @@ func main() {
 	chCmd <- CmdSubscribePlayerPos{Ch: chPosPlayerTrap}
 
 	// --- Alavanca + Portal com timeout ---
-	alavancaPos := Ponto{X: jogo.PosX + 2, Y: jogo.PosY}
-	portalPos := Ponto{X: jogo.PosX + 4, Y: jogo.PosY}
-	destino := Ponto{X: jogo.PosX + 10, Y: jogo.PosY + 2}
+	alavancaPos := Ponto{X: jogo.PosX, Y: jogo.PosY + 2}
+	portalPos := Ponto{X: jogo.PosX, Y: jogo.PosY + 4}
+	destino := Ponto{X: jogo.PosX + 15, Y: jogo.PosY + 10}
 
 	chAbrirPortal := make(chan sinal, 1)
 	iniciarAlavanca(alavancaPos.X, alavancaPos.Y, chCmd, chAbrirPortal)
@@ -48,6 +48,8 @@ func main() {
 	wp := []Ponto{
 		{X: jogo.PosX + 12, Y: jogo.PosY + 1},
 		{X: jogo.PosX + 12, Y: jogo.PosY + 6},
+		{X: jogo.PosX + 12, Y: jogo.PosY + 10},
+		{X: jogo.PosX + 12, Y: jogo.PosY + 14},
 	}
 	iniciarSentinela("S1", wp[0], wp, 4, chCmd, chPosPlayerSent)
 
