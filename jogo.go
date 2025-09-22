@@ -8,27 +8,34 @@ import (
 
 // Elemento representa qualquer objeto do mapa (parede, personagem, vegetação, etc)
 type Elemento struct {
-	simbolo   rune
-	cor       Cor
-	corFundo  Cor
-	tangivel  bool // Indica se o elemento bloqueia passagem
+	simbolo  rune
+	cor      Cor
+	corFundo Cor
+	tangivel bool // Indica se o elemento bloqueia passagem
 }
 
 // Jogo contém o estado atual do jogo
 type Jogo struct {
-	Mapa            [][]Elemento // grade 2D representando o mapa
-	PosX, PosY      int          // posição atual do personagem
-	UltimoVisitado  Elemento     // elemento que estava na posição do personagem antes de mover
-	StatusMsg       string       // mensagem para a barra de status
+	Mapa           [][]Elemento // grade 2D representando o mapa
+	PosX, PosY     int          // posição atual do personagem
+	UltimoVisitado Elemento     // elemento que estava na posição do personagem antes de mover
+	StatusMsg      string       // mensagem para a barra de status
 }
 
 // Elementos visuais do jogo
 var (
-	Personagem = Elemento{'☺', CorCinzaEscuro, CorPadrao, true}
-	Inimigo    = Elemento{'☠', CorVermelho, CorPadrao, true}
-	Parede     = Elemento{'▤', CorParede, CorFundoParede, true}
-	Vegetacao  = Elemento{'♣', CorVerde, CorPadrao, false}
-	Vazio      = Elemento{' ', CorPadrao, CorPadrao, false}
+	Personagem    = Elemento{'☺', CorCinzaEscuro, CorPadrao, true}
+	Inimigo       = Elemento{'☠', CorVermelho, CorPadrao, true}
+	Parede        = Elemento{'▤', CorParede, CorFundoParede, true}
+	Vegetacao     = Elemento{'♣', CorVerde, CorPadrao, false}
+	Vazio         = Elemento{' ', CorPadrao, CorPadrao, false}
+	PortalFechado = Elemento{'◉', CorVerde, CorPadrao, true}  // bloqueia
+	PortalAberto  = Elemento{'◎', CorVerde, CorPadrao, false} // não bloqueia
+	AlavancaOff   = Elemento{'┴', CorCinzaEscuro, CorPadrao, true}
+	AlavancaOn    = Elemento{'┬', CorVerde, CorPadrao, true}
+	ArmadilhaOff  = Elemento{'^', CorCinzaEscuro, CorPadrao, false}
+	ArmadilhaOn   = Elemento{'▲', CorVermelho, CorPadrao, false}
+	SentinelaElem = Elemento{'§', CorVermelho, CorPadrao, true}
 )
 
 // Cria e retorna uma nova instância do jogo
@@ -102,7 +109,30 @@ func jogoMoverElemento(jogo *Jogo, x, y, dx, dy int) {
 	// Obtem elemento atual na posição
 	elemento := jogo.Mapa[y][x] // guarda o conteúdo atual da posição
 
-	jogo.Mapa[y][x] = jogo.UltimoVisitado     // restaura o conteúdo anterior
-	jogo.UltimoVisitado = jogo.Mapa[ny][nx]   // guarda o conteúdo atual da nova posição
-	jogo.Mapa[ny][nx] = elemento              // move o elemento
+	jogo.Mapa[y][x] = jogo.UltimoVisitado   // restaura o conteúdo anterior
+	jogo.UltimoVisitado = jogo.Mapa[ny][nx] // guarda o conteúdo atual da nova posição
+	jogo.Mapa[ny][nx] = elemento            // move o elemento
+}
+
+//**funções
+//  para utilização do coordenador**
+
+// verifica se a coordenada está dentro do mapa
+func jogoDentro(j *Jogo, x, y int) bool {
+	return y >= 0 && y < len(j.Mapa) && x >= 0 && x < len(j.Mapa[y])
+}
+
+// retorna o personagem ou obstáculo da célula
+func jogoCelula(j *Jogo, x, y int) Elemento {
+	if !jogoDentro(j, x, y) {
+		return Parede
+	} // trata fora como obstáculo
+	return j.Mapa[y][x]
+}
+
+// atribui algo na célula
+func jogoSetCelula(j *Jogo, x, y int, e Elemento) {
+	if jogoDentro(j, x, y) {
+		j.Mapa[y][x] = e
+	}
 }

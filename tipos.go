@@ -1,5 +1,7 @@
 package main
 
+//objetos para facilitar a interface com o coordenador
+
 type Ponto struct{ X, Y int }
 
 // Comandos para o coordenador, enviados por elementos/teclado
