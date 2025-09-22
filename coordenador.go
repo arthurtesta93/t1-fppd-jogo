@@ -1,22 +1,22 @@
 package main
 
-import (
-	"time"
-)
+import "time"
 
+// Coordenador: único "dono" do estado do jogo.
+// Recebe comandos de teclado e dos elementos autônomos e aplica no estado.
 type coordenador struct {
 	jogo          *Jogo
-	chTeclado     <-chan EventoTeclado
 	chCmd         <-chan Cmd
-	subsPos       []chan<- Ponto
-	interactables map[[2]int]chan<- struct{}
+	done          chan<- struct{}            // sinaliza término para main
+	subsPos       []chan<- Ponto             // inscritos para posição do player
+	interactables map[[2]int]chan<- struct{} // pontos interagíveis -> canal
 }
 
-func novoCoordenador(j *Jogo, chTeclado <-chan EventoTeclado, chCmd <-chan Cmd) *coordenador {
+func novoCoordenador(j *Jogo, chCmd <-chan Cmd, done chan<- struct{}) *coordenador {
 	return &coordenador{
 		jogo:          j,
-		chTeclado:     chTeclado,
 		chCmd:         chCmd,
+		done:          done,
 		interactables: make(map[[2]int]chan<- struct{}),
 	}
 }
@@ -24,81 +24,86 @@ func novoCoordenador(j *Jogo, chTeclado <-chan EventoTeclado, chCmd <-chan Cmd) 
 func (c *coordenador) publicarPosPlayer() {
 	p := Ponto{c.jogo.PosX, c.jogo.PosY}
 	for _, ch := range c.subsPos {
-		select { // não bloquear o coordenador
+		select {
 		case ch <- p:
 		default:
-		}
+		} // não bloquear o coordenador
 	}
 }
 
 func (c *coordenador) desenhar() { interfaceDesenharJogo(c.jogo) }
 
 func (c *coordenador) loop() {
+	// Desenho inicial e primeira publicação de posição
 	c.desenhar()
+	c.publicarPosPlayer()
+
 	tickerRender := time.NewTicker(120 * time.Millisecond) // refresh suave
 	defer tickerRender.Stop()
 
 	for {
 		select {
-		case ev := <-c.chTeclado:
-			switch ev.Tipo {
-			case "sair":
-				return
-			case "interagir":
-				c.tratarInteragir()
-			case "mover":
-				// reutiliza sua lógica existente para mover o jogador
-				personagemMover(ev.Tecla, c.jogo)
-				c.publicarPosPlayer()
-			}
-			c.desenhar()
-
 		case cmd := <-c.chCmd:
 			switch m := cmd.(type) {
+
 			case CmdQuit:
+				if c.done != nil {
+					close(c.done)
+				}
 				return
 
+			// --- Teclado como comandos ---
+			case CmdMovePlayer:
+				// Reutiliza sua lógica de movimentação (mantendo exclusão no coordenador)
+				personagemMover(m.Tecla, c.jogo)
+				c.publicarPosPlayer()
+
+			case CmdInteragir:
+				c.tratarInteragir()
+
+			// --- Infra de inscrição / UI ---
 			case CmdStatus:
 				c.jogo.StatusMsg = m.Texto
 
-			case CmdEscutarPosDoJogador:
+			case CmdSubscribePlayerPos:
 				c.subsPos = append(c.subsPos, m.Ch)
 
-			case CmdRegistrarInteragivel:
+			case CmdRegisterInteractable:
 				c.interactables[[2]int{m.X, m.Y}] = m.Ch
 
-			case CmdSetCelula:
-				// exclusão mútua: apenas o coordenador altera o mapa
+			// --- Mutação de mapa/entidades (somente aqui) ---
+			case CmdSetCell:
 				if jogoDentro(c.jogo, m.X, m.Y) {
 					jogoSetCelula(c.jogo, m.X, m.Y, m.Elem)
 				}
 
-			case CmdTeleportarJogador:
+			case CmdTeleportPlayer:
 				if jogoPodeMoverPara(c.jogo, m.X, m.Y) {
-					// move “teleportando”: restaura onde está e grava no destino
+					// Teleporta o jogador (respeitando último visitado)
 					jogoSetCelula(c.jogo, c.jogo.PosX, c.jogo.PosY, c.jogo.UltimoVisitado)
 					c.jogo.UltimoVisitado = jogoCelula(c.jogo, m.X, m.Y)
 					c.jogo.PosX, c.jogo.PosY = m.X, m.Y
 					c.publicarPosPlayer()
 				}
 
-			case CmdTryMoveElemento:
-				// valida colisões simples com o mapa
+			case CmdTryMoveEntity:
+				// Valida destino e colisão simples
 				if !jogoDentro(c.jogo, m.To.X, m.To.Y) {
 					break
 				}
 				dest := jogoCelula(c.jogo, m.To.X, m.To.Y)
-				if dest.tangivel && !m.PodeSobrepor {
+				if dest.tangivel && !m.CanOverlap {
 					break
 				}
-				// apaga posição antiga e desenha nova (visual direto no mapa)
+				// Atualiza mapa (apaga origem, desenha destino)
 				jogoSetCelula(c.jogo, m.From.X, m.From.Y, Vazio)
 				jogoSetCelula(c.jogo, m.To.X, m.To.Y, m.Elem)
 			}
+
 			c.desenhar()
 
 		case <-tickerRender.C:
-			// redesenha periodicamente (efeitos de status etc.)
+			// Re-render periódico para efeitos de UI
 			c.desenhar()
 		}
 	}
@@ -106,10 +111,9 @@ func (c *coordenador) loop() {
 
 func (c *coordenador) tratarInteragir() {
 	x, y := c.jogo.PosX, c.jogo.PosY
-	deltas := [][2]int{{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}} // célula e adjacências 4-neigh
+	deltas := [][2]int{{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}} // célula e vizinhos 4-neigh
 	for _, d := range deltas {
-		ch, ok := c.interactables[[2]int{x + d[0], y + d[1]}]
-		if ok {
+		if ch, ok := c.interactables[[2]int{x + d[0], y + d[1]}]; ok {
 			select {
 			case ch <- struct{}{}:
 			default:
@@ -120,13 +124,19 @@ func (c *coordenador) tratarInteragir() {
 	c.jogo.StatusMsg = "Nada para interagir por perto."
 }
 
-// **Captura de teclado em goroutine separada**
-func capturarTeclado(ch chan<- EventoTeclado) {
+// === Teclado → Comandos (goroutine separada) ===
+// Lê eventos crus da interface e os traduz para comandos enviados ao coordenador.
+func capturarTeclado(chCmd chan<- Cmd) {
 	for {
 		ev := interfaceLerEventoTeclado()
-		ch <- ev
-		if ev.Tipo == "sair" {
+		switch ev.Tipo {
+		case "sair":
+			chCmd <- CmdQuit{}
 			return
+		case "interagir":
+			chCmd <- CmdInteragir{}
+		case "mover":
+			chCmd <- CmdMovePlayer{Tecla: ev.Tecla} // ev.Tecla já é rune
 		}
 	}
 }

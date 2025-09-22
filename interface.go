@@ -6,6 +6,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/nsf/termbox-go"
 )
 
@@ -14,13 +16,13 @@ type Cor = termbox.Attribute
 
 // Definições de cores utilizadas no jogo
 const (
-	CorPadrao     Cor = termbox.ColorDefault
-	CorCinzaEscuro    = termbox.ColorDarkGray
-	CorVermelho       = termbox.ColorRed
-	CorVerde          = termbox.ColorGreen
-	CorParede         = termbox.ColorBlack | termbox.AttrBold | termbox.AttrDim
-	CorFundoParede    = termbox.ColorDarkGray
-	CorTexto          = termbox.ColorDarkGray
+	CorPadrao      Cor = termbox.ColorDefault
+	CorCinzaEscuro     = termbox.ColorDarkGray
+	CorVermelho        = termbox.ColorRed
+	CorVerde           = termbox.ColorGreen
+	CorParede          = termbox.ColorBlack | termbox.AttrBold | termbox.AttrDim
+	CorFundoParede     = termbox.ColorDarkGray
+	CorTexto           = termbox.ColorDarkGray
 )
 
 // EventoTeclado representa uma ação detectada do teclado (como mover, sair ou interagir)
@@ -43,7 +45,9 @@ func interfaceFinalizar() {
 
 // Lê um evento do teclado e o traduz para um EventoTeclado
 func interfaceLerEventoTeclado() EventoTeclado {
+	fmt.Println("Lendo evento do teclado")
 	ev := termbox.PollEvent()
+	fmt.Println("Evento do teclado: ", ev)
 	if ev.Type != termbox.EventKey {
 		return EventoTeclado{}
 	}
@@ -105,4 +109,3 @@ func interfaceDesenharBarraDeStatus(jogo *Jogo) {
 		termbox.SetCell(i, len(jogo.Mapa)+3, c, CorTexto, CorPadrao)
 	}
 }
-

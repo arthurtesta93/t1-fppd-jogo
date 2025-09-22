@@ -1,8 +1,6 @@
 package main
 
-import (
-	"os"
-)
+import "os"
 
 func main() {
 	interfaceIniciar()
@@ -18,24 +16,24 @@ func main() {
 		panic(err)
 	}
 
-	// Canais principais
-	chTeclado := make(chan EventoTeclado, 8)
+	// Barramento de comandos
 	chCmd := make(chan Cmd, 64)
 
-	// Sobe coordenador (dono do estado)
-	coord := novoCoordenador(&jogo, chTeclado, chCmd)
+	// Sobe coordenador (dono do estado) + canal de término
+	done := make(chan struct{})
+	coord := novoCoordenador(&jogo, chCmd, done)
 	go coord.loop()
 
-	// Captura de teclado concorrente
-	go capturarTeclado(chTeclado)
+	// Teclado em goroutine separada → envia apenas comandos
+	go capturarTeclado(chCmd)
 
 	// --- Subscrição à posição do player para elementos ---
 	chPosPlayerPortal := make(chan Ponto, 4)
 	chPosPlayerSent := make(chan Ponto, 4)
 	chPosPlayerTrap := make(chan Ponto, 4)
-	chCmd <- CmdEscutarPosDoJogador{Ch: chPosPlayerPortal}
-	chCmd <- CmdEscutarPosDoJogador{Ch: chPosPlayerSent}
-	chCmd <- CmdEscutarPosDoJogador{Ch: chPosPlayerTrap}
+	chCmd <- CmdSubscribePlayerPos{Ch: chPosPlayerPortal}
+	chCmd <- CmdSubscribePlayerPos{Ch: chPosPlayerSent}
+	chCmd <- CmdSubscribePlayerPos{Ch: chPosPlayerTrap}
 
 	// --- Alavanca + Portal com timeout ---
 	alavancaPos := Ponto{X: jogo.PosX + 2, Y: jogo.PosY}
@@ -43,12 +41,10 @@ func main() {
 	destino := Ponto{X: jogo.PosX + 10, Y: jogo.PosY + 2}
 
 	chAbrirPortal := make(chan sinal, 1)
-
-	// Agora a própria alavanca publica o sinal para abrir o portal
 	iniciarAlavanca(alavancaPos.X, alavancaPos.Y, chCmd, chAbrirPortal)
 	iniciarPortal(portalPos.X, portalPos.Y, destino, chCmd, chAbrirPortal, chPosPlayerPortal)
 
-	// --- Sentinela com escuta múltipla ---
+	// --- Sentinela ---
 	wp := []Ponto{
 		{X: jogo.PosX + 12, Y: jogo.PosY + 1},
 		{X: jogo.PosX + 12, Y: jogo.PosY + 6},
@@ -59,11 +55,6 @@ func main() {
 	trap := Ponto{X: jogo.PosX + 1, Y: jogo.PosY + 2}
 	iniciarArmadilha(trap.X, trap.Y, 1500, 2000, chCmd, chPosPlayerTrap)
 
-	// Bloqueia até o usuário sair (ESC)
-	for ev := range chTeclado {
-		if ev.Tipo == "sair" {
-			break
-		}
-	}
-	chCmd <- CmdQuit{}
+	// Aguarda coordenador encerrar (recebe CmdQuit do teclado)
+	<-done
 }

@@ -1,36 +1,33 @@
+// tipos.go
 package main
-
-//objetos para facilitar a interface com o coordenador
 
 type Ponto struct{ X, Y int }
 
-// Comandos para o coordenador, enviados por elementos/teclado
 type Cmd interface{}
-
 type CmdQuit struct{}
-
 type CmdStatus struct{ Texto string }
 
-type CmdEscutarPosDoJogador struct{ Ch chan<- Ponto }
+// ⬇️ AQUI: tecla como rune (e não string)
+type CmdMovePlayer struct{ Tecla rune }
 
-type CmdSetCelula struct {
+type CmdInteragir struct{}
+
+type CmdSubscribePlayerPos struct{ Ch chan<- Ponto }
+
+type CmdSetCell struct {
 	X, Y int
 	Elem Elemento
 }
+type CmdTeleportPlayer struct{ X, Y int }
 
-type CmdTeleportarJogador struct {
-	X, Y int // destino
+type CmdTryMoveEntity struct {
+	ID         string
+	From, To   Ponto
+	Elem       Elemento
+	CanOverlap bool
 }
 
-type CmdTryMoveElemento struct {
-	ID           string
-	From, To     Ponto
-	Elem         Elemento
-	PodeSobrepor bool // se pode sobrepor (ex.: portal aberto, armadilha, etc.)
-}
-
-type CmdRegistrarInteragivel struct {
+type CmdRegisterInteractable struct {
 	X, Y int
-	// coordenador enviará um "struct{}{}" aqui quando o jogador interagir nessa célula (ou adjacências)
-	Ch chan<- struct{}
+	Ch   chan<- struct{}
 }
